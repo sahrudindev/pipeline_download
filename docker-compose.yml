@@ -1,0 +1,39 @@
+services:
+  redis:
+    image: redis:7-alpine
+    # tanpa restart policy → hanya jalan saat "docker compose up", tidak auto-start saat boot
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build: ./backend
+    env_file: .env
+    depends_on:
+      - redis
+    volumes:
+      - downloads:/app/downloads
+    ports:
+      - "8000:8000"
+
+  worker:
+    build: ./backend
+    env_file: .env
+    depends_on:
+      - redis
+      - backend
+    volumes:
+      - downloads:/app/downloads
+    command: celery -A app.celery_app.celery worker --loglevel=info --concurrency=2
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    environment:
+      - NEXT_PUBLIC_API_BASE=http://localhost:8000
+    ports:
+      - "3000:3000"
+
+volumes:
+  redis_data:
+  downloads:
